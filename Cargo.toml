@@ -1,0 +1,34 @@
+[package]
+name = "slint-borderless"
+version = "0.1.0"
+edition = "2024"
+description = "Safe Windows-native borderless window integration for Slint"
+documentation = "https://docs.rs/slint-borderless"
+homepage = "https://github.com/BillBlueInnit/slint-borderless"
+repository = "https://github.com/BillBlueInnit/slint-borderless"
+readme = "README.md"
+license = "MIT"
+keywords = ["slint", "windows", "borderless", "win32", "dwm"]
+categories = ["gui", "os::windows-apis"]
+
+[dependencies]
+raw-window-handle = "0.6"
+slint = { version = "1.17", default-features = false, features = [
+    "compat-1-2",
+    "raw-window-handle-06",
+    "std",
+] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+slint = { version = "1.17", features = ["raw-window-handle-06"] }

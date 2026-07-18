@@ -1,0 +1,110 @@
+// Reusable visual title bar. Native behavior is supplied by FrameController.
+
+export component Win32TitleBar inherits Rectangle {
+    height: 48px;
+
+    in property <int> hover-button: 0; // 0 none, 1 min, 2 max, 3 close
+    in property <length> button-width: 46px;
+    in property <length> icon-size: 12px;
+
+    in property <color> background-color: #111827;
+    in property <color> foreground-color: #cbd5e1;
+    in property <color> hover-color: #ffffff18;
+    in property <color> close-hover-color: #c42b1c;
+
+    in property <bool> use-custom-minimize-icon: false;
+    in property <bool> use-custom-maximize-icon: false;
+    in property <bool> use-custom-close-icon: false;
+    in property <image> minimize-icon;
+    in property <image> maximize-icon;
+    in property <image> close-icon;
+
+    background: root.background-color;
+
+    HorizontalLayout {
+        spacing: 0px;
+        @children
+        Rectangle { horizontal-stretch: 1; }
+
+        Rectangle {
+            width: root.button-width;
+            background: root.hover-button == 1 ? root.hover-color : transparent;
+
+            Image {
+                visible: root.use-custom-minimize-icon;
+                source: root.minimize-icon;
+                width: root.icon-size;
+                height: root.icon-size;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+            }
+            Rectangle {
+                visible: !root.use-custom-minimize-icon;
+                x: (parent.width - self.width) / 2;
+                y: parent.height / 2;
+                width: 10px;
+                height: 1px;
+                background: root.foreground-color;
+            }
+        }
+
+        Rectangle {
+            width: root.button-width;
+            background: root.hover-button == 2 ? root.hover-color : transparent;
+
+            Image {
+                visible: root.use-custom-maximize-icon;
+                source: root.maximize-icon;
+                width: root.icon-size;
+                height: root.icon-size;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+            }
+            Rectangle {
+                visible: !root.use-custom-maximize-icon;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 10px;
+                height: 10px;
+                background: transparent;
+                border-width: 1px;
+                border-color: root.foreground-color;
+            }
+        }
+
+        Rectangle {
+            width: root.button-width;
+            background: root.hover-button == 3 ? root.close-hover-color : transparent;
+
+            Image {
+                visible: root.use-custom-close-icon;
+                source: root.close-icon;
+                width: root.icon-size;
+                height: root.icon-size;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+            }
+            Rectangle {
+                visible: !root.use-custom-close-icon;
+                x: (parent.width - self.width) / 2;
+                y: parent.height / 2;
+                width: 12px;
+                height: 1px;
+                background: root.hover-button == 3 ? white : root.foreground-color;
+                transform-rotation: 45deg;
+            }
+            Rectangle {
+                visible: !root.use-custom-close-icon;
+                x: (parent.width - self.width) / 2;
+                y: parent.height / 2;
+                width: 12px;
+                height: 1px;
+                background: root.hover-button == 3 ? white : root.foreground-color;
+                transform-rotation: -45deg;
+            }
+        }
+    }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "slint-borderless-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+slint = "1.17"
+slint-borderless = { path = "../.." }
+
+[build-dependencies]
+slint-build = "1.17"
+slint-borderless = { path = "../.." }

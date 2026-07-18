@@ -1,0 +1,74 @@
+import { Win32TitleBar } from "@slint-borderless/titlebar.slint";
+
+export component AppWindow inherits Window {
+    title: root.menu-open ? "slint-borderless demo · menu open" : "slint-borderless demo";
+    preferred-width: 900px;
+    preferred-height: 600px;
+    min-width: 640px;
+    min-height: 480px;
+    background: #eef2f7;
+
+    in property <int> caption-hover: 0;
+    in-out property <bool> menu-open: false;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        Win32TitleBar {
+            hover-button: root.caption-hover;
+
+            Rectangle {
+                width: 48px;
+                background: menu-touch.has-hover ? #ffffff18 : transparent;
+                Rectangle { x: 17px; y: 18px; width: 14px; height: 1px; background: #cbd5e1; }
+                Rectangle { x: 17px; y: 23px; width: 14px; height: 1px; background: #cbd5e1; }
+                Rectangle { x: 17px; y: 28px; width: 14px; height: 1px; background: #cbd5e1; }
+                menu-touch := TouchArea { clicked => { root.menu-open = !root.menu-open; } }
+            }
+            Text {
+                text: "  slint-borderless";
+                color: #f8fafc;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            background: #eef2f7;
+            VerticalLayout {
+                padding: 36px;
+                spacing: 18px;
+
+                Text {
+                    text: "Slint + Windows 原生无边框窗口";
+                    color: #172033;
+                    font-size: 26px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "拖动标题栏、调整四边/四角、Win + 方向键、Snap Layout 均由 Windows 管理。";
+                    color: #66758a;
+                    font-size: 14px;
+                }
+                Rectangle {
+                    height: 110px;
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: #d9e1eb;
+                    background: white;
+                    Text {
+                        text: root.menu-open
+                            ? "菜单已打开：标题栏中的 Slint TouchArea 正常接收了点击。"
+                            : "点击左上角三道杠菜单，验证标题栏交互区域。";
+                        color: #34445b;
+                        font-size: 14px;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                    }
+                }
+                Rectangle { vertical-stretch: 1; }
+            }
+        }
+    }
+}
