@@ -41,13 +41,13 @@ export component AppWindow inherits Window {
                 spacing: 18px;
 
                 Text {
-                    text: "Slint + Windows 原生无边框窗口";
+                    text: "Slint + native Windows borderless window";
                     color: #172033;
                     font-size: 26px;
                     font-weight: 700;
                 }
                 Text {
-                    text: "拖动标题栏、调整四边/四角、Win + 方向键、Snap Layout 均由 Windows 管理。";
+                    text: "Title-bar dragging, edge/corner resizing, Win + Arrow and Snap Layouts are all handled by Windows.";
                     color: #66758a;
                     font-size: 14px;
                 }
@@ -59,8 +59,8 @@ export component AppWindow inherits Window {
                     background: white;
                     Text {
                         text: root.menu-open
-                            ? "菜单已打开：标题栏中的 Slint TouchArea 正常接收了点击。"
-                            : "点击左上角三道杠菜单，验证标题栏交互区域。";
+                            ? "Menu open: the Slint TouchArea inside the title bar received the click."
+                            : "Click the hamburger menu in the top-left corner to test title-bar client areas.";
                         color: #34445b;
                         font-size: 14px;
                         vertical-alignment: center;

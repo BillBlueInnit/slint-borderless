@@ -1,7 +1,5 @@
 use slint::ComponentHandle;
-use slint_borderless::{
-    ClientArea, FrameController, FrameEvent, FrameOptions, LogicalSize,
-};
+use slint_borderless::{ClientArea, FrameController, FrameEvent, FrameOptions, LogicalSize};
 
 slint::include_modules!();
 

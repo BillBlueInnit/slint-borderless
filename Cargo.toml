@@ -2,6 +2,7 @@
 name = "slint-borderless"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.92"
 description = "Safe Windows-native borderless window integration for Slint"
 documentation = "https://docs.rs/slint-borderless"
 homepage = "https://github.com/BillBlueInnit/slint-borderless"
@@ -13,7 +14,7 @@ categories = ["gui", "os::windows-apis"]
 
 [dependencies]
 raw-window-handle = "0.6"
-slint = { version = "1.17", default-features = false, features = [
+slint = { version = "1.18", default-features = false, features = [
     "compat-1-2",
     "raw-window-handle-06",
     "std",
@@ -31,4 +32,4 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-slint = { version = "1.17", features = ["raw-window-handle-06"] }
+slint = { version = "1.18", features = ["raw-window-handle-06"] }

@@ -51,6 +51,7 @@ pub struct FrameInner {
     options: FrameOptions,
     client_areas: RefCell<Vec<ClientArea>>,
     hover: Cell<Option<CaptionButton>>,
+    pressed: Cell<Option<CaptionButton>>,
     handler: RefCell<Option<EventHandler>>,
     last_error: RefCell<Option<FrameError>>,
 }
@@ -64,6 +65,7 @@ impl FrameInner {
             client_areas: RefCell::new(options.client_areas.clone()),
             options,
             hover: Cell::new(None),
+            pressed: Cell::new(None),
             handler: RefCell::new(None),
             last_error: RefCell::new(None),
         })
@@ -104,9 +106,10 @@ impl FrameInner {
             }
             RemovePropW(hwnd, FRAME_PROPERTY.as_ptr());
 
-            SetWindowLongPtrW(hwnd, GWL_STYLE, self.original_style.get() as isize);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, self.original_style.get() as _);
             self.hwnd.set(std::ptr::null_mut());
             self.attached.set(false);
+            self.pressed.set(None);
             self.set_hover(None);
             SetWindowPos(
                 hwnd,
@@ -231,7 +234,8 @@ fn install_window(window: &slint::Window, inner: &Rc<FrameInner>) -> Result<(), 
             | WS_SYSMENU
             | WS_MINIMIZEBOX
             | WS_MAXIMIZEBOX;
-        SetWindowLongPtrW(hwnd, GWL_STYLE, required_style as isize);
+        // `as _`: on 32-bit targets windows-sys aliases these to the `i32` variants.
+        SetWindowLongPtrW(hwnd, GWL_STYLE, required_style as _);
         let _ = EnableNonClientDpiScaling(hwnd);
 
         let raw_inner = Rc::into_raw(inner.clone());
@@ -240,7 +244,7 @@ fn install_window(window: &slint::Window, inner: &Rc<FrameInner>) -> Result<(), 
         {
             RemovePropW(hwnd, FRAME_PROPERTY.as_ptr());
             drop(Rc::from_raw(raw_inner));
-            SetWindowLongPtrW(hwnd, GWL_STYLE, original_style as isize);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, original_style as _);
             return Err(FrameError::NativeSubclassFailed);
         }
 
@@ -280,14 +284,19 @@ unsafe extern "system" fn subclass_proc(
     _subclass_id: usize,
     ref_data: usize,
 ) -> LRESULT {
-    let inner = &*(ref_data as *const FrameInner);
+    let raw_inner = ref_data as *const FrameInner;
     let result = catch_unwind(AssertUnwindSafe(|| {
-        handle_message(inner, hwnd, message, wparam, lparam)
+        handle_message(&*raw_inner, hwnd, message, wparam, lparam)
     }));
-    match result {
+    let result = match result {
         Ok(value) => value,
         Err(_) => DefSubclassProc(hwnd, message, wparam, lparam),
+    };
+    if message == WM_NCDESTROY {
+        // Release the subclass' strong reference only after every borrow of it has ended.
+        drop(Rc::from_raw(raw_inner));
     }
+    result
 }
 
 unsafe fn handle_message(
@@ -338,40 +347,44 @@ unsafe fn handle_message(
             };
             TrackMouseEvent(&mut tracking);
         }
-        WM_NCMOUSELEAVE => inner.set_hover(None),
-        WM_NCLBUTTONDOWN if matches!(wparam as u32, HTMINBUTTON | HTMAXBUTTON | HTCLOSE) => {
-            return 0;
+        WM_NCMOUSELEAVE => {
+            inner.pressed.set(None);
+            inner.set_hover(None);
+        }
+        WM_NCLBUTTONDOWN => {
+            let pressed = button_from_hit(wparam as u32);
+            inner.pressed.set(pressed);
+            if pressed.is_some() {
+                return 0;
+            }
         }
         WM_NCLBUTTONUP => {
-            let command = match wparam as u32 {
-                HTMINBUTTON => Some(SC_MINIMIZE),
-                HTMAXBUTTON if IsZoomed(hwnd) != 0 => Some(SC_RESTORE),
-                HTMAXBUTTON => Some(SC_MAXIMIZE),
-                HTCLOSE => Some(SC_CLOSE),
-                _ => None,
-            };
-            if let Some(command) = command {
+            // Like native caption buttons, only act when press and release hit the same button.
+            if let Some(button) = button_from_hit(wparam as u32)
+                && inner.pressed.take() == Some(button)
+            {
+                let command = match button {
+                    CaptionButton::Minimize => SC_MINIMIZE,
+                    CaptionButton::Maximize if IsZoomed(hwnd) != 0 => SC_RESTORE,
+                    CaptionButton::Maximize => SC_MAXIMIZE,
+                    CaptionButton::Close => SC_CLOSE,
+                };
                 return DefSubclassProc(hwnd, WM_SYSCOMMAND, command as WPARAM, 0);
             }
         }
         WM_NCDESTROY => {
+            // `subclass_proc` releases the subclass' reference after this returns.
             RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID);
             RemovePropW(hwnd, FRAME_PROPERTY.as_ptr());
             inner.hwnd.set(std::ptr::null_mut());
             inner.attached.set(false);
+            inner.pressed.set(None);
             inner.set_hover(None);
             inner.emit(FrameEvent::Detached);
-            let result = DefSubclassProc(hwnd, message, wparam, lparam);
-            drop(Rc::from_raw(ref_data_from_inner(inner)));
-            return result;
         }
         _ => {}
     }
     DefSubclassProc(hwnd, message, wparam, lparam)
-}
-
-fn ref_data_from_inner(inner: &FrameInner) -> *const FrameInner {
-    inner as *const FrameInner
 }
 
 unsafe fn hit_test(inner: &FrameInner, hwnd: HWND, lparam: LPARAM) -> u32 {
@@ -421,18 +434,27 @@ unsafe fn hit_test(inner: &FrameInner, hwnd: HWND, lparam: LPARAM) -> u32 {
         return HTNOWHERE;
     }
 
-    let from_right = client_width - x;
-    let button_width = inner.options.caption_button_width;
-    if from_right > 0.0 && from_right <= button_width {
-        HTCLOSE
-    } else if from_right <= button_width * 2.0 {
-        HTMAXBUTTON
-    } else if from_right <= button_width * 3.0 {
-        HTMINBUTTON
+    if let Some(hit) = caption_button_hit(client_width - x, inner.options.caption_button_width) {
+        hit
     } else if inner.contains_client_area(x, y, client_width) {
         HTCLIENT
     } else {
         HTCAPTION
+    }
+}
+
+/// Hit-test the three caption buttons by distance from the client's right edge.
+fn caption_button_hit(from_right: f32, button_width: f32) -> Option<u32> {
+    if from_right <= 0.0 {
+        None
+    } else if from_right <= button_width {
+        Some(HTCLOSE)
+    } else if from_right <= button_width * 2.0 {
+        Some(HTMAXBUTTON)
+    } else if from_right <= button_width * 3.0 {
+        Some(HTMINBUTTON)
+    } else {
+        None
     }
 }
 
@@ -455,7 +477,18 @@ fn px_to_dip(value: i32, dpi: u32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{dip_to_px, px_to_dip};
+    use super::{caption_button_hit, dip_to_px, px_to_dip};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{HTCLOSE, HTMAXBUTTON, HTMINBUTTON};
+
+    #[test]
+    fn caption_buttons_are_laid_out_from_the_right_edge() {
+        assert_eq!(caption_button_hit(0.0, 46.0), None);
+        assert_eq!(caption_button_hit(1.0, 46.0), Some(HTCLOSE));
+        assert_eq!(caption_button_hit(46.0, 46.0), Some(HTCLOSE));
+        assert_eq!(caption_button_hit(47.0, 46.0), Some(HTMAXBUTTON));
+        assert_eq!(caption_button_hit(138.0, 46.0), Some(HTMINBUTTON));
+        assert_eq!(caption_button_hit(139.0, 46.0), None);
+    }
 
     #[test]
     fn dpi_conversion_covers_common_windows_scales() {
