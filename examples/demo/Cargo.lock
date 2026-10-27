@@ -4007,7 +4007,7 @@ dependencies = [
 
 [[package]]
 name = "slint-borderless"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "raw-window-handle",
  "slint",
